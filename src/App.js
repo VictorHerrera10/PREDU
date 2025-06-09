@@ -1,25 +1,32 @@
-import logo from './logo.svg';
-import './App.css';
+// Estilos globales de PrimeReact
+import "primereact/resources/themes/lara-light-indigo/theme.css"; // Puedes cambiar a otro tema si deseas
+import "primereact/resources/primereact.min.css";
+import "primeicons/primeicons.css";
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
+// Rutas públicas
+import Login from "./Home/login";
+import Register from "./Home/register";
+
+// Rutas protegidas
+import AppRoutes from "./routes/AppRoutes";
+
+const App = () => {
+    return (
+        <Router>
+            <Routes>
+                {/* Redirección por defecto al dashboard */}
+                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+            </Routes>
+
+            {/* Rutas internas con Layout y Menubar */}
+            <AppRoutes />
+        </Router>
+    );
+};
 
 export default App;
