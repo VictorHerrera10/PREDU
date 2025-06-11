@@ -5,18 +5,41 @@ import { Toast } from "primereact/toast";
 import { Password } from "primereact/password";
 import { FloatLabel } from "primereact/floatlabel";
 import styled from "styled-components";
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
+import { useNavigate } from "react-router-dom";  
 
 const AuthPage = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const toast = useRef(null);
+    const navigate = useNavigate(); 
 
-    const handleLogin = () => {
-        toast.current.show({
-            severity: "success",
-            summary: "Login exitoso",
-            detail: "Bienvenido a la plataforma",
-        });
+    const handleLogin = async () => {
+        if (!email || !password) {
+            toast.current.show({
+                severity: "warn",
+                summary: "Campos incompletos",
+                detail: "Por favor, completa todos los campos",
+            });
+            return;
+        }
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            toast.current.show({
+                severity: "success",
+                summary: "Login exitoso",
+                detail: "Bienvenido a la plataforma",
+            });
+            setTimeout(() => navigate("/dashboard"), 1000); 
+        } catch (error) {
+            toast.current.show({
+                severity: "error",
+                summary: "Error al iniciar sesión",
+                detail: error.message,
+            });
+        }
     };
 
     const handleRegister = () => {
@@ -80,7 +103,7 @@ const AuthPage = () => {
                             label="Iniciar Sesión"
                             onClick={handleLogin}
                             className="p-button-primary p-mt-4"
-                            style={{ marginBottom: '1rem' }} // Ajusta el valor según lo necesites
+                            style={{ marginBottom: '1rem' }}
                         />
                         <div className="p-mt-3">
                             <Button
@@ -95,8 +118,7 @@ const AuthPage = () => {
         </AuthPageContainer>
     );
 };
-
-// Styled-components
+ 
 const AuthPageContainer = styled.div`
   display: flex;
   height: 96vh;

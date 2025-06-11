@@ -6,6 +6,10 @@ import { Password } from "primereact/password";
 import { FloatLabel } from "primereact/floatlabel";
 import styled from "styled-components";
 
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "../firebase"; 
+
 const RegisterPage = () => {
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
@@ -13,7 +17,7 @@ const RegisterPage = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const toast = useRef(null);
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
         if (!fullName || !email || !password || !confirmPassword) {
             toast.current.show({
                 severity: "warn",
@@ -32,13 +36,35 @@ const RegisterPage = () => {
             return;
         }
 
-        // Aquí iría la llamada al backend con fetch o axios
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
 
-        toast.current.show({
-            severity: "success",
-            summary: "Registro exitoso",
-            detail: "Ya puedes iniciar sesión",
-        });
+            await setDoc(doc(db, "usuarios", user.uid), {
+                uid: user.uid,
+                nombre: fullName,
+                email: user.email,
+                creadoEn: new Date(),
+            });
+
+            toast.current.show({
+                severity: "success",
+                summary: "Registro exitoso",
+                detail: "Ya puedes iniciar sesión",
+            });
+
+            setFullName("");
+            setEmail("");
+            setPassword("");
+            setConfirmPassword("");
+        } catch (error) {
+            console.error("Error al registrar:", error);
+            toast.current.show({
+                severity: "error",
+                summary: "Registro fallido",
+                detail: error.message,
+            });
+        }
     };
 
     return (
@@ -126,7 +152,7 @@ const RegisterPage = () => {
     );
 };
 
-// Estilos idénticos al AuthPage original
+// Estilos
 const AuthPageContainer = styled.div`
   display: flex;
   height: 96vh;
