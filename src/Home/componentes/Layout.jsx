@@ -31,7 +31,7 @@ const Layout = () => {
 
     return (
         <>
-            <Menubar model={items} start={<img src="/logo.png" alt="logo" height="40" />} />
+            <Menubar model={items} start={<img src="../../PREDU.png" alt="logo" height="40" />} />
             <div style={{ padding: "2rem" }}>
                 <Outlet />
             </div>
