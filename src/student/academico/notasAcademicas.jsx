@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Toast } from "primereact/toast";
 import { Button } from "primereact/button";
 import styled from "styled-components";
  
-import { collection, addDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -23,45 +22,48 @@ const NotasAcademicas = () => {
     });
 
     const [carreraPredicha, setCarreraPredicha] = useState('');
-    const [loading, setLoading] = useState(true); 
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [currentUser, setCurrentUser] = useState(null);
-    const [lastResult, setLastResult] = useState(null);  
-    const [showForm, setShowForm] = useState(false);  
+    const [lastResult, setLastResult] = useState(null);
+    const [showForm, setShowForm] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);
             if (user) {
-                await fetchLastResult(user.uid);
+                await fetchAllResultsAndFilter(user.uid);
             } else {
                 setLoading(false);
                 setLastResult(null);
-                setShowForm(true);  
+                setShowForm(true);
             }
         });
 
         return () => unsubscribe();
     }, []);
 
-    const fetchLastResult = async (uid) => {
+    const fetchAllResultsAndFilter = async (uid) => {
         try {
-            const q = query(
-                collection(db, "academico"), 
-                orderBy("creadoEl", "desc"),
-                limit(1)
-            );
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const doc = querySnapshot.docs[0];
-                setLastResult(doc.data());
-                setShowForm(false);  
+            const querySnapshot = await getDocs(collection(db, "academico"));
+            let userResults = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.uid === uid) {
+                    userResults.push(data);
+                }
+            });
+
+            if (userResults.length > 0) {
+                userResults.sort((a, b) => b.creadoEl.toDate() - a.creadoEl.toDate());
+                setLastResult(userResults[0]);
+                setShowForm(false);
             } else {
-                setShowForm(true);  
+                setShowForm(true);
             }
         } catch (err) {
             setError('Error al cargar resultados anteriores: ' + err.message);
-            setShowForm(true);  
+            setShowForm(true);
         } finally {
             setLoading(false);
         }
@@ -102,13 +104,13 @@ const NotasAcademicas = () => {
                 creadoEl: new Date(),
             });
 
-            setLastResult({ 
+            setLastResult({
                 uid: currentUser.uid,
                 respuestas: calificaciones,
                 carrera: data.carrera_predicha,
                 creadoEl: new Date(),
             });
-            setShowForm(false); 
+            setShowForm(false);
         } catch (err) {
             setError(err.message);
         } finally {
@@ -117,16 +119,16 @@ const NotasAcademicas = () => {
     };
 
     const handleRetake = () => {
-        setLastResult(null);  
-        setCalificaciones({ 
+        setLastResult(null);
+        setCalificaciones({
             arte_y_cultura: '', castellano_como_segunda_lengua: '', ciencia_y_tecnologia: '',
             ciencias_sociales: '', comunicacion: '', desarrollo_personal: '',
             educacion_fisica: '', educacion_para_el_trabajo: '', educacion_religiosa: '',
             ingles: '', matematica: '',
         });
-        setCarreraPredicha(''); 
-        setShowForm(true);  
-        setError('');  
+        setCarreraPredicha('');
+        setShowForm(true);
+        setError('');
     };
 
     if (loading) {

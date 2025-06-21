@@ -5,7 +5,7 @@ import { Steps } from "primereact/steps";
 import { Timeline } from "primereact/timeline";
 import styled from "styled-components";
 
-import { collection, addDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -123,42 +123,46 @@ const TestCompletoRIASEC = () => {
     const [procesando, setProcesando] = useState(false);
     const [resultado, setResultado] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
-    const [loading, setLoading] = useState(true); 
-    const [lastResult, setLastResult] = useState(null);  
-    const [showTest, setShowTest] = useState(false);  
+    const [loading, setLoading] = useState(true);
+    const [lastResult, setLastResult] = useState(null);
+    const [showTest, setShowTest] = useState(false);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             setCurrentUser(user);
             if (user) {
-                await fetchLastResult(user.uid);
+                await fetchAllResultsAndFilter(user.uid);
             } else {
                 setLoading(false);
                 setLastResult(null);
-                setShowTest(true);  
+                setShowTest(true);
             }
         });
 
         return () => unsubscribe();
     }, []);
 
-    const fetchLastResult = async (uid) => {
+    const fetchAllResultsAndFilter = async (uid) => {
         try {
-            const q = query(
-                collection(db, "psicologica"), 
-                orderBy("creadoEl", "desc"),
-                limit(1)
-            );
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const doc = querySnapshot.docs[0];
-                setLastResult(doc.data());
-                setShowTest(false);  
+            const querySnapshot = await getDocs(collection(db, "psicologica"));
+            let userResults = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                if (data.uid === uid) {
+                    userResults.push(data);
+                }
+            });
+
+            if (userResults.length > 0) {
+                userResults.sort((a, b) => b.creadoEl.toDate() - a.creadoEl.toDate());
+                setLastResult(userResults[0]);
+                setShowTest(false);
             } else {
-                setShowTest(true); 
+                setShowTest(true);
             }
         } catch (err) {
-            setShowTest(true);  
+            console.error('Error al cargar resultados anteriores del test RIASEC: ', err);
+            setShowTest(true);
         } finally {
             setLoading(false);
         }
@@ -178,6 +182,7 @@ const TestCompletoRIASEC = () => {
         };
 
         if (!currentUser) {
+            setResultado("Error: No hay usuario autenticado.");
             setProcesando(false);
             return;
         }
@@ -190,6 +195,7 @@ const TestCompletoRIASEC = () => {
             });
 
             const data = await res.json();
+            console.log("Respuesta del backend:", data);
             setResultado(data.facultad_predicha ?? data.carrera ?? JSON.stringify(data));
 
             await addDoc(collection(db, "psicologica"), {
@@ -199,13 +205,13 @@ const TestCompletoRIASEC = () => {
                 creadoEl: new Date(),
             });
 
-            setLastResult({ 
+            setLastResult({
                 uid: currentUser.uid,
                 respuestas: payload,
                 carrera: data.facultad_predicha,
                 creadoEl: new Date(),
             });
-            setShowTest(false);  
+            setShowTest(false);
         } catch (err) {
             setResultado("Error al procesar la predicción.");
         } finally {
@@ -271,7 +277,7 @@ const TestCompletoRIASEC = () => {
     };
 
     const handleRetake = () => {
-        setLastResult(null);  
+        setLastResult(null);
         setBloqueIndex(0);
         setPreguntaActual(0);
         setRespuestas({});
@@ -279,7 +285,7 @@ const TestCompletoRIASEC = () => {
         setTestFinalizado(false);
         setResultado(null);
         setProcesando(false);
-        setShowTest(true); 
+        setShowTest(true);
     };
 
     if (loading) {
@@ -334,7 +340,7 @@ const TestCompletoRIASEC = () => {
                         <Content>
                             {testFinalizado ? (
                                 <Resultado>
-                                    <h3>¡Test completado!</h3>
+                                    <h3>Test completado!</h3>
                                     <p>Resumen total por perfil RIASEC:</p>
                                     <table className="resumen-table">
                                         <thead>
@@ -375,7 +381,7 @@ const TestCompletoRIASEC = () => {
                                 </Resultado>
                             ) : bloqueFinalizado ? (
                                 <Resultado>
-                                    <h3>¡Has completado el bloque: {bloqueActual.nombre}!</h3>
+                                    <h3>Has completado el bloque: {bloqueActual.nombre}!</h3>
                                     <table className="resumen-table">
                                         <thead>
                                             <tr>
