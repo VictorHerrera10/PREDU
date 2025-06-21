@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "primereact/card";
 import { Button } from "primereact/button";
 import { Steps } from "primereact/steps";
 import { Timeline } from "primereact/timeline";
 import styled from "styled-components";
+
+import { collection, addDoc, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { auth, db } from "../../firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const bloques = [
     {
@@ -118,7 +122,47 @@ const TestCompletoRIASEC = () => {
 
     const [procesando, setProcesando] = useState(false);
     const [resultado, setResultado] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loading, setLoading] = useState(true); 
+    const [lastResult, setLastResult] = useState(null);  
+    const [showTest, setShowTest] = useState(false);  
 
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setCurrentUser(user);
+            if (user) {
+                await fetchLastResult(user.uid);
+            } else {
+                setLoading(false);
+                setLastResult(null);
+                setShowTest(true);  
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const fetchLastResult = async (uid) => {
+        try {
+            const q = query(
+                collection(db, "psicologica"), 
+                orderBy("creadoEl", "desc"),
+                limit(1)
+            );
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                const doc = querySnapshot.docs[0];
+                setLastResult(doc.data());
+                setShowTest(false);  
+            } else {
+                setShowTest(true); 
+            }
+        } catch (err) {
+            setShowTest(true);  
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const procesarResultado = async () => {
         setProcesando(true);
@@ -133,18 +177,37 @@ const TestCompletoRIASEC = () => {
             convencional: resumen.C[0],
         };
 
+        if (!currentUser) {
+            setProcesando(false);
+            return;
+        }
+
         try {
-            const res = await fetch("http://127.0.0.1:8000/prediccion/psicologica/", {
+            const res = await fetch("http://192.168.18.15:8000/prediccion/psicologica/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
 
             const data = await res.json();
-            console.log("🔍 Respuesta del backend:", data);
             setResultado(data.facultad_predicha ?? data.carrera ?? JSON.stringify(data));
+
+            await addDoc(collection(db, "psicologica"), {
+                uid: currentUser.uid,
+                respuestas: payload,
+                carrera: data.facultad_predicha,
+                creadoEl: new Date(),
+            });
+
+            setLastResult({ 
+                uid: currentUser.uid,
+                respuestas: payload,
+                carrera: data.facultad_predicha,
+                creadoEl: new Date(),
+            });
+            setShowTest(false);  
         } catch (err) {
-            setResultado("❌ Error al procesar la predicción.");
+            setResultado("Error al procesar la predicción.");
         } finally {
             setProcesando(false);
         }
@@ -207,135 +270,177 @@ const TestCompletoRIASEC = () => {
         return resumen;
     };
 
+    const handleRetake = () => {
+        setLastResult(null);  
+        setBloqueIndex(0);
+        setPreguntaActual(0);
+        setRespuestas({});
+        setBloqueFinalizado(false);
+        setTestFinalizado(false);
+        setResultado(null);
+        setProcesando(false);
+        setShowTest(true); 
+    };
+
+    if (loading) {
+        return <Container><p>Cargando información...</p></Container>;
+    }
+
     return (
         <Container>
-            <Steps model={bloques.map((b) => ({ label: b.nombre }))} activeIndex={bloqueIndex} readOnly />
-            <Layout>
-                <Sidebar>
-                    <h4>Preguntas</h4>
-                    <Timeline
-                        value={timelineData}
-                        align="left"
-                        marker={(item) => (
-                            <span
-                                style={{
-                                    display: "flex",
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    width: "1.6rem",
-                                    height: "1.6rem",
-                                    borderRadius: "50%",
-                                    backgroundColor: item.color,
-                                    fontSize: "0.8rem",
-                                    color: "#fff",
-                                }}
-                            >
-                {item.numero}
-              </span>
-                        )}
-                        content={() => null}
+            {lastResult && !showTest ? (
+                <div className="last-result-container">
+                    <h2>Tu último resultado del test RIASEC</h2>
+                    <p>Fecha del test: {lastResult.creadoEl instanceof Date ? lastResult.creadoEl.toLocaleString() : new Date(lastResult.creadoEl.seconds * 1000).toLocaleString()}</p>
+                    <h4>Carrera sugerida:</h4>
+                    <p><strong>{lastResult.carrera}</strong></p>
+                    <Button
+                        label="Hacer el test de nuevo"
+                        icon="pi pi-refresh"
+                        onClick={handleRetake}
+                        className="p-button-secondary mt-3"
                     />
-                </Sidebar>
-
-                <Content>
-                    {testFinalizado ? (
-                        <Resultado>
-                            <h3>🎉 ¡Test completado!</h3>
-                            <p>Resumen total por perfil RIASEC:</p>
-                            <table className="resumen-table">
-                                <thead>
-                                <tr>
-                                    <th>Letra</th>
-                                    <th>👍 Me gusta</th>
-                                    <th>👎 No me gusta</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {Object.entries(resumenFinalRIASEC()).map(([letra, [si, no]]) => (
-                                    <tr key={letra}>
-                                        <td>{letra}</td>
-                                        <td>{si}</td>
-                                        <td>{no}</td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-
-                            {!resultado ? (
-                                <>
-                                    <Button
-                                        label="Procesar información"
-                                        onClick={procesarResultado}
-                                        className="p-button-primary mt-3"
-                                        disabled={procesando}
-                                    />
-                                    {procesando && <p className="mt-2">⏳ Procesando predicción...</p>}
-                                </>
-                            ) : (
-                                <div className="mt-3">
-                                    <h4>🎓 Carrera sugerida:</h4>
-                                    <p><strong>{resultado}</strong></p>
-                                </div>
-                            )}
-                        </Resultado>
-                    ) : bloqueFinalizado ? (
-                        <Resultado>
-                            <h3>✅ ¡Has completado el bloque: {bloqueActual.nombre}!</h3>
-                            <table className="resumen-table">
-                                <thead>
-                                <tr>
-                                    <th>Letra</th>
-                                    <th>👍 Me gusta</th>
-                                    <th>👎 No me gusta</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {Object.entries(resumenRIASECporBloque()).map(([letra, [si, no]]) => (
-                                    <tr key={letra}>
-                                        <td>{letra}</td>
-                                        <td>{si}</td>
-                                        <td>{no}</td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
-                            <Button
-                                label={
-                                    bloqueIndex === bloques.length - 2
-                                        ? "Pasar a Ocupaciones"
-                                        : bloqueIndex === bloques.length - 1
-                                            ? "Finalizar"
-                                            : "Pasar a Habilidades"
-                                }
-                                onClick={avanzarBloque}
-                                className="p-button-primary mt-3"
+                </div>
+            ) : (
+                <>
+                    <Steps model={bloques.map((b) => ({ label: b.nombre }))} activeIndex={bloqueIndex} readOnly />
+                    <Layout>
+                        <Sidebar>
+                            <h4>Preguntas</h4>
+                            <Timeline
+                                value={timelineData}
+                                align="left"
+                                marker={(item) => (
+                                    <span
+                                        style={{
+                                            display: "flex",
+                                            justifyContent: "center",
+                                            alignItems: "center",
+                                            width: "1.6rem",
+                                            height: "1.6rem",
+                                            borderRadius: "50%",
+                                            backgroundColor: item.color,
+                                            fontSize: "0.8rem",
+                                            color: "#fff",
+                                        }}
+                                    >
+                                        {item.numero}
+                                    </span>
+                                )}
+                                content={() => null}
                             />
-                        </Resultado>
-                    ) : (
-                        <Card title={`Pregunta ${preguntaActual + 1}`}>
-                            <p>{pregunta.texto}</p>
-                            <div className="flex justify-content-around mt-4">
-                                <Button
-                                    label="Me gusta"
-                                    className="p-button-success"
-                                    onClick={() => responder(1)}
-                                />
-                                <Button
-                                    label="No me gusta"
-                                    className="p-button-secondary"
-                                    onClick={() => responder(0)}
-                                />
-                            </div>
-                        </Card>
-                    )}
-                </Content>
-            </Layout>
+                        </Sidebar>
+
+                        <Content>
+                            {testFinalizado ? (
+                                <Resultado>
+                                    <h3>¡Test completado!</h3>
+                                    <p>Resumen total por perfil RIASEC:</p>
+                                    <table className="resumen-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Letra</th>
+                                                <th>Me gusta</th>
+                                                <th>No me gusta</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {Object.entries(resumenFinalRIASEC()).map(([letra, [si, no]]) => (
+                                                <tr key={letra}>
+                                                    <td>{letra}</td>
+                                                    <td>{si}</td>
+                                                    <td>{no}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+
+                                    {!resultado ? (
+                                        <>
+                                            <Button
+                                                label="Procesar información"
+                                                onClick={procesarResultado}
+                                                className="p-button-primary mt-3"
+                                                disabled={procesando || !currentUser}
+                                            />
+                                            {procesando && <p className="mt-2">Procesando predicción...</p>}
+                                            {!currentUser && <p className="mt-2" style={{ color: 'red' }}>Inicia sesión para procesar la información.</p>}
+                                        </>
+                                    ) : (
+                                        <div className="mt-3">
+                                            <h4>Carrera sugerida:</h4>
+                                            <p><strong>{resultado}</strong></p>
+                                        </div>
+                                    )}
+                                </Resultado>
+                            ) : bloqueFinalizado ? (
+                                <Resultado>
+                                    <h3>¡Has completado el bloque: {bloqueActual.nombre}!</h3>
+                                    <table className="resumen-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Letra</th>
+                                                <th>Me gusta</th>
+                                                <th>No me gusta</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {Object.entries(resumenRIASECporBloque()).map(([letra, [si, no]]) => (
+                                                <tr key={letra}>
+                                                    <td>{letra}</td>
+                                                    <td>{si}</td>
+                                                    <td>{no}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <Button
+                                        label={
+                                            bloqueIndex === bloques.length - 2
+                                                ? "Pasar a Ocupaciones"
+                                                : bloqueIndex === bloques.length - 1
+                                                    ? "Finalizar"
+                                                    : "Pasar a Habilidades"
+                                        }
+                                        onClick={avanzarBloque}
+                                        className="p-button-primary mt-3"
+                                    />
+                                </Resultado>
+                            ) : (
+                                <Card title={`Pregunta ${preguntaActual + 1}`}>
+                                    <p>{pregunta.texto}</p>
+                                    <div className="flex justify-content-around mt-4">
+                                        <Button
+                                            label="Me gusta"
+                                            className="p-button-success"
+                                            onClick={() => responder(1)}
+                                        />
+                                        <Button
+                                            label="No me gusta"
+                                            className="p-button-secondary"
+                                            onClick={() => responder(0)}
+                                        />
+                                    </div>
+                                </Card>
+                            )}
+                        </Content>
+                    </Layout>
+                </>
+            )}
         </Container>
     );
 };
 
 const Container = styled.div`
   padding: 2rem;
+
+  .last-result-container {
+      border: 1px solid #ddd;
+      padding: 1.5rem;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+      text-align: center;
+  }
 `;
 
 const Layout = styled.div`
