@@ -13,6 +13,7 @@ import ExploradorCarreras from "../carreras/exploradorCarreras";
 import AdminLayout from "../admin/AdminLayout";
 import UsuariosPage from "../admin/UsuariosPage";
 import PreguntasTestPage from "../admin/PreguntasTestPage";
+import PrediccionAcademica from "../admin/componente/PrediccionAcademica";
 
 const AppRoutes = () => {
     return (
@@ -33,6 +34,7 @@ const AppRoutes = () => {
             <Route path="/admin" element={<AdminLayout />}>
                 <Route path="usuarios" element={<UsuariosPage />} />
                 <Route path="preguntas" element={<PreguntasTestPage />} />
+                <Route path="prediccion-academica" element={<PrediccionAcademica />} />
             </Route>
 
             {/* Ruta 404 */}
