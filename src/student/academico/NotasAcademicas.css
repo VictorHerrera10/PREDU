@@ -1,0 +1,54 @@
+.container {
+    padding: 20px;
+    max-width: 750px;
+    margin: 0 auto;
+}
+
+/* Contenedor de la tarjeta de resultados y formulario */
+.result-card, .form-card {
+    margin-bottom: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilo para cada campo de entrada */
+.field {
+    margin-bottom: 15px;
+}
+
+/* Alineación de los cursos: nombre del curso a la izquierda y el InputText a la derecha */
+.input-group {
+    display: flex;
+    align-items: center; /* Centra verticalmente el nombre y el input */
+    justify-content: space-between; /* Espacio entre el nombre y el input */
+}
+
+.p-inputgroup {
+    width: auto; /* No estira el InputText */
+}
+
+/* Asegura que el InputText mantenga el tamaño predeterminado */
+.p-inputgroup-addon {
+    background-color: #f0f0f0;
+}
+
+.mt-4 {
+    margin-top: 20px;
+}
+
+.mt-3 {
+    margin-top: 15px;
+}
+
+/* Separación general entre los elementos */
+.grid {
+    display: grid;
+    grid-template-columns: 1fr;  /* Ahora todo en una columna */
+    gap: 20px;
+}
+.center-btn {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
