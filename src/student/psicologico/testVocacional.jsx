@@ -3,10 +3,8 @@ import { Accordion, AccordionTab } from 'primereact/accordion';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { ProgressBar } from 'primereact/progressbar';
-import { Card } from 'primereact/card';
 import { FaHammer, FaFlask, FaPalette, FaUserFriends, FaBusinessTime, FaCogs } from 'react-icons/fa';
 
-// Definimos las preguntas con el tipo RIASEC y gif asociado
 const preguntas = [
     {
         nombre: "Actividades",
@@ -58,6 +56,7 @@ const TestCompletoRIASEC = () => {
         Ocupaciones: { R: { yes: 0, no: 0 }, I: { yes: 0, no: 0 }, A: { yes: 0, no: 0 }, S: { yes: 0, no: 0 }, E: { yes: 0, no: 0 }, C: { yes: 0, no: 0 } }
     });
     const [testCompleted, setTestCompleted] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
 
     const handleCheckboxChange = (questionId, value, section, tipo) => {
         setSelectedQuestions((prev) => ({
@@ -78,6 +77,13 @@ const TestCompletoRIASEC = () => {
     };
 
     const openQuestionDialog = (question) => {
+        // Si ya se respondió esta pregunta, mostramos el mensaje de advertencia
+        if (answeredQuestions.has(question.id)) {
+            setErrorMessage("Ya has respondido esta pregunta.");
+            return; // No abrir el diálogo si ya fue respondida
+        }
+
+        setErrorMessage(""); // Limpiar mensaje de error
         setCurrentQuestion(question);
         setOpenDialog(true);
     };
@@ -90,13 +96,13 @@ const TestCompletoRIASEC = () => {
         const section = getSection(currentQuestion.id);
         const tipo = currentQuestion.tipo;
         handleCheckboxChange(currentQuestion.id, answer, section, tipo);
-        setOpenDialog(false);
 
         // Abre la siguiente pregunta
         const nextQuestion = getNextQuestion();
         if (nextQuestion) {
             setCurrentQuestion(nextQuestion);
-            setOpenDialog(true);
+        } else {
+            setOpenDialog(false); // Cerrar cuando no haya más preguntas
         }
     };
 
@@ -130,21 +136,25 @@ const TestCompletoRIASEC = () => {
         <div className="test-container p-d-flex p-flex-column p-align-center p-mt-4">
             {testCompleted ? (
                 <div>
-                    {/* Mostrar resultados por tipo dentro de cada sección */}
-                    {Object.keys(sectionResults).map(section => (
-                        <Card key={section} title={`Resultados de la sección ${section}`}>
-                            {['R', 'I', 'A', 'S', 'E', 'C'].map(tipo => (
-                                <div key={tipo}>
-                                    <p>{`Tipo ${tipo}: Sí: ${sectionResults[section][tipo].yes}, No: ${sectionResults[section][tipo].no}`}</p>
-                                </div>
-                            ))}
-                        </Card>
-                    ))}
-                    {/* Mostrar resumen general */}
-                    <Card title="Resumen General">
-                        <p>Sí: {Object.values(sectionResults).reduce((acc, curr) => acc + Object.values(curr).reduce((subAcc, subCurr) => subAcc + subCurr.yes, 0), 0)}</p>
-                        <p>No: {Object.values(sectionResults).reduce((acc, curr) => acc + Object.values(curr).reduce((subAcc, subCurr) => subAcc + subCurr.no, 0), 0)}</p>
-                    </Card>
+                    {/* Mostrar resumen de resultados por letra */}
+                    <table className="p-d-table p-shadow-2" style={{ width: '100%', textAlign: 'center' }}>
+                        <thead>
+                        <tr>
+                            <th>Tipo</th>
+                            <th>Sí</th>
+                            <th>No</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {['R', 'I', 'A', 'S', 'E', 'C'].map(tipo => (
+                            <tr key={tipo}>
+                                <td>{tipo}</td>
+                                <td>{Object.values(sectionResults).reduce((acc, curr) => acc + curr[tipo].yes, 0)}</td>
+                                <td>{Object.values(sectionResults).reduce((acc, curr) => acc + curr[tipo].no, 0)}</td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
                 </div>
             ) : (
                 <div className="p-grid p-justify-center" style={{ width: '150vh', margin: 'auto', marginTop: '20px' }}>
@@ -207,9 +217,19 @@ const TestCompletoRIASEC = () => {
                     <div style={{ textAlign: 'center' }}>
                         {currentQuestion ? <img src={currentQuestion.gif} alt="gif de la pregunta" /> : null}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-                        <Button label="Sí" onClick={() => handleAnswer(1)} className="p-button-success p-mr-2" />
-                        <Button label="No" onClick={() => handleAnswer(0)} className="p-button-danger" />
+                    {/* Mostrar mensaje de error si la pregunta ya fue respondida */}
+                    {answeredQuestions.has(currentQuestion?.id) && (
+                        <p style={{ color: 'red', textAlign: 'center' }}>Ya has respondido esta pregunta.</p>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                        {answeredQuestions.has(currentQuestion?.id) ? (
+                            <Button label="Siguiente pregunta" onClick={handleAnswer} className="p-button-primary" />
+                        ) : (
+                            <>
+                                <Button label="Sí" onClick={() => handleAnswer(1)} className="p-button-success p-mr-2" />
+                                <Button label="No" onClick={() => handleAnswer(0)} className="p-button-danger" />
+                            </>
+                        )}
                     </div>
                 </div>
             </Dialog>
