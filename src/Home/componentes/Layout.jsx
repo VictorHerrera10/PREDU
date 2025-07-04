@@ -1,28 +1,92 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Menubar } from "primereact/menubar";
 import { Button } from "primereact/button";
 import { Avatar } from "primereact/avatar";
 import { useNavigate } from "react-router-dom";
-import { FaBars, FaSignOutAlt } from "react-icons/fa"; // Importamos el icono de 'sign out'
+import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import PerfilModal from "./perfil";
 import { useLoader } from "./LoaderContext";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Toast } from "primereact/toast";
-import { Outlet } from "react-router-dom"; // Asegúrate de importar Outlet
-import "./Layout.css"; // create this file for custom styles
+import { Outlet } from "react-router-dom";
+import { auth, db } from '../../firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import "./Layout.css";
 
 const Layout = () => {
     const navigate = useNavigate();
     const [showPerfil, setShowPerfil] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { loading } = useLoader();
-    const toastBC = useRef(null); // Referencia para el Toast
+    const toastBC = useRef(null);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [userData, setUserData] = useState(null);
 
-    const user = {
-        nombre: "Estudiante Demo",
-        email: "AGGGG@predu.pe",
-        riasec: "IA",
-        favoritas: ["Psicología", "Diseño Gráfico"]
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setCurrentUser(user);
+                try {
+                    const userDocRef = doc(db, "usuarios", user.uid);
+                    const userDocSnap = await getDoc(userDocRef);
+                    if (userDocSnap.exists()) {
+                        setUserData(userDocSnap.data());
+                    } else {
+                        console.log("No user data found in Firestore.");
+                        setUserData({ email: user.email, nombre: "Usuario" });
+                    }
+                } catch (error) {
+                    console.error("Error fetching user data:", error);
+                    setUserData({ email: user.email, nombre: "Usuario" });
+                }
+            } else {
+                setCurrentUser(null);
+                setUserData(null);
+                navigate("/login");
+            }
+        });
+        return () => unsubscribe();
+    }, [navigate]);
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            toastBC.current.show({
+                severity: "success",
+                summary: "Sesión cerrada",
+                detail: "Has cerrado sesión exitosamente.",
+                life: 3000,
+            });
+            navigate("/login");
+        } catch (error) {
+            toastBC.current.show({
+                severity: "error",
+                summary: "Error al cerrar sesión",
+                detail: error.message,
+                life: 3000,
+            });
+        }
+    };
+
+    const confirmExit = () => {
+        toastBC.current.clear();
+        toastBC.current.show({
+            severity: "warn",
+            summary: "¿Estás seguro que quieres salir?",
+            sticky: true,
+            content: (props) => (
+                <div className="flex flex-column align-items-center" style={{ flex: '1' }}>
+                    <div className="flex align-items-center justify-content-center gap-2" style={{ marginBottom: "0.7rem" }}>
+                        <Avatar image={userData?.profilePic || "/images/avatar/amyelsner.png"} shape="circle" />
+                        <span className="font-bold text-900" style={{ fontWeight: 900, lineHeight: 'normal' }}>{userData?.nombre || currentUser?.email}</span>
+                    </div>
+                    <div className="font-medium text-lg my-3 text-900" style={{ textAlign: "center" }}>{props.message.summary}</div>
+                    <Button className="p-button-sm" label="Sí" severity="danger" onClick={handleLogout} />
+                </div>
+            ),
+            position: "center"
+        });
     };
 
     const items = [
@@ -34,33 +98,8 @@ const Layout = () => {
         { label: "Perfil", icon: "pi pi-user", command: () => setShowPerfil(true) },
     ];
 
-    // Función para mostrar el Toast de confirmación
-    const confirmExit = () => {
-        toastBC.current.clear();
-        toastBC.current.show({
-            severity: "warn",
-            summary: "¿Estás seguro que quieres salir?",
-            sticky: true,
-            content: (props) => (
-                <div className="flex flex-column align-items-center" style={{ flex: '1' }}>
-                    <div className="flex align-items-center justify-content-center gap-2" style={{ marginBottom: "0.7rem" }}>
-                        <Avatar image="/images/avatar/amyelsner.png" shape="circle" />
-                        <span className="font-bold text-900" style={{ fontWeight: 900, lineHeight: 'normal' }}>Amy Elsner</span>
-                    </div>
-                    <div className="font-medium text-lg my-3 text-900" style={{ textAlign: "center" }}>{props.message.summary}</div>
-                    <Button className="p-button-sm" label="Sí" severity="danger" onClick={() => {
-                        navigate("/login");
-                        toastBC.current.clear();
-                    }} />
-                </div>
-            ),
-            position: "center"  // Esto centra el Toast en la pantalla (vertical y horizontalmente)
-        });
-    };
-
     return (
         <>
-            {/* Menubar con el logo a la izquierda y las opciones de menú a la derecha */}
             <Menubar
                 model={[]}
                 start={<img src="/PREDU.png" alt="logo" height="50" />}
@@ -85,7 +124,7 @@ const Layout = () => {
                         />
                         <Button
                             className="menu-signout p-button-rounded p-button-text"
-                            icon={<FaSignOutAlt color="red" />} // Red icon
+                            icon={<FaSignOutAlt color="red" />}
                             onClick={confirmExit}
                             style={{ marginLeft: "10px" }}
                         />
@@ -111,10 +150,10 @@ const Layout = () => {
             />
 
             <div style={{ padding: "0.1rem 0.5rem", marginTop: "0" }}>
-                <Outlet /> {/* Aquí se renderiza el contenido de las rutas hijas */}
+                <Outlet />
             </div>
 
-            <PerfilModal visible={showPerfil} onHide={() => setShowPerfil(false)} userData={user} />
+            <PerfilModal visible={showPerfil} onHide={() => setShowPerfil(false)} userData={userData || { email: currentUser?.email, nombre: "Usuario" }} />
 
             {loading && (
                 <div
@@ -125,7 +164,6 @@ const Layout = () => {
                 </div>
             )}
 
-            {/* Toast para confirmar la salida */}
             <Toast ref={toastBC} position="center" onRemove={() => toastBC.current.clear()} />
         </>
     );

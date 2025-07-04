@@ -8,6 +8,7 @@ const PerfilModal = ({ visible, onHide, userData }) => {
 
     const handleConfigClick = () => {
         navigate("/configuracion"); // Redirige a la vista de configuración
+        onHide();
     };
 
     return (
