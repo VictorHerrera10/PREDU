@@ -14,6 +14,8 @@ import AdminLayout from "../admin/AdminLayout";
 import UsuariosPage from "../admin/UsuariosPage";
 import PreguntasTestPage from "../admin/PreguntasTestPage";
 import PrediccionAcademica from "../admin/componente/PrediccionAcademica";
+import PerfilModal from "../Home/componentes/perfil";
+import ConfiguracionPerfil from "../Home/componentes/ConfiguracionPerfil";
 
 const AppRoutes = () => {
     return (
@@ -28,6 +30,8 @@ const AppRoutes = () => {
                 <Route path="/notas" element={<NotasAcademicas />} />
                 <Route path="/resultados" element={<Recomendaciones />} />
                 <Route path="/explorador" element={<ExploradorCarreras />} />
+                <Route path="/perfil" element={<PerfilModal />} /> {/* Ruta de perfil */}
+                <Route path="/configuracion" element={<ConfiguracionPerfil />} /> {/* Ruta de configuración */}
             </Route>
 
             {/* Rutas del panel Admin */}
@@ -44,3 +48,4 @@ const AppRoutes = () => {
 };
 
 export default AppRoutes;
+

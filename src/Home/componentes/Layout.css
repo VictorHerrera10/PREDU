@@ -1,0 +1,33 @@
+.menu-end {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+.menu-buttons {
+    display: flex;
+    gap: 1rem;
+}
+.menu-toggle {
+    display: none;
+    margin-left: 1rem;
+}
+.mobile-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+    padding: 0.5rem 0;
+}
+@media (max-width: 1030px) {
+    .menu-buttons {
+        display: none;
+    }
+    .menu-toggle {
+        display: inline-flex;
+    }
+}

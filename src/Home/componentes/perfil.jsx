@@ -1,22 +1,21 @@
 import React from "react";
 import { Dialog } from "primereact/dialog";
-import { Tag } from "primereact/tag";
 import { Button } from "primereact/button";
+import { useNavigate } from "react-router-dom"; // Importar useNavigate
 
 const PerfilModal = ({ visible, onHide, userData }) => {
+    const navigate = useNavigate(); // Usamos navigate para redirigir
+
+    const handleConfigClick = () => {
+        navigate("/configuracion"); // Redirige a la vista de configuración
+    };
+
     return (
         <Dialog header="👤 Mi Perfil" visible={visible} style={{ width: '30vw' }} onHide={onHide} modal>
             <p><strong>Nombre:</strong> {userData.nombre}</p>
             <p><strong>Correo:</strong> {userData.email}</p>
-            <p><strong>Perfil RIASEC:</strong> {userData.riasec || "No disponible"}</p>
-            <p><strong>Carreras guardadas:</strong></p>
-            <ul>
-                {userData.favoritas?.length > 0 ? (
-                    userData.favoritas.map((carrera, idx) => (
-                        <li key={idx}><Tag value={carrera} severity="info" /></li>
-                    ))
-                ) : <p>No hay favoritas aún.</p>}
-            </ul>
+
+            <Button label="Configuración" icon="pi pi-cog" onClick={handleConfigClick} />
             <Button label="Cerrar" icon="pi pi-times" className="p-button-text" onClick={onHide} />
         </Dialog>
     );
