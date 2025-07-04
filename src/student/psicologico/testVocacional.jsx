@@ -20,6 +20,7 @@ const bloques = [
             { id: "S01", texto: "Escribir cartas a los amigos", tipo: "S", gif: "https://via.placeholder.com/150/FFFF00/000000?Text=S01" },
             { id: "E01", texto: "Influir en los demás", tipo: "E", gif: "https://via.placeholder.com/150/000000/FFFFFF?Text=E01" },
             { id: "C01", texto: "Mantener el orden en el escritorio y mi habitación", tipo: "C", gif: "https://via.placeholder.com/150/FF00FF/FFFFFF?Text=C01" },
+            { id: "R02", texto: "Reparar artículos eléctricos", tipo: "R", gif: "https://via.placeholder.com/150/0000FF/808080?Text=R01" },
         ],
     },
     {

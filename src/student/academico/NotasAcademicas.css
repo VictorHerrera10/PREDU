@@ -52,3 +52,21 @@
     justify-content: center;
     margin-top: 1rem;
 }
+.center-text {
+    text-align: center;
+}
+
+.center-btn {
+    text-align: center;
+}
+
+.p-inputgroup {
+    width: auto; /* Mantener el tamaño predeterminado */
+}
+.center-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
