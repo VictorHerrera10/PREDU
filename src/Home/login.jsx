@@ -6,8 +6,9 @@ import { Password } from "primereact/password";
 import { FloatLabel } from "primereact/floatlabel";
 import styled from "styled-components";
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
-import { useNavigate } from "react-router-dom";  
+import { doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { useNavigate } from "react-router-dom";   
 
 const AuthPage = () => {
     const [email, setEmail] = useState("");
@@ -26,13 +27,36 @@ const AuthPage = () => {
         }
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            toast.current.show({
-                severity: "success",
-                summary: "Login exitoso",
-                detail: "Bienvenido a la plataforma",
-            });
-            setTimeout(() => navigate("/dashboard"), 1000); 
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            const userDocRef = doc(db, "usuarios", user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+
+            if (userDocSnap.exists()) {
+                const userData = userDocSnap.data();
+                if (userData.role === "admin") {
+                    toast.current.show({
+                        severity: "success",
+                        summary: "Login exitoso",
+                        detail: "Bienvenido administrador",
+                    });
+                    setTimeout(() => navigate("/admin/usuarios"), 1000); 
+                } else {
+                    toast.current.show({
+                        severity: "success",
+                        summary: "Login exitoso",
+                        detail: "Bienvenido a la plataforma",
+                    });
+                    setTimeout(() => navigate("/dashboard"), 1000); 
+                }
+            } else {
+                toast.current.show({
+                    severity: "error",
+                    summary: "Error al iniciar sesión",
+                    detail: "No se encontraron datos de usuario.",
+                });
+            }
         } catch (error) {
             toast.current.show({
                 severity: "error",
