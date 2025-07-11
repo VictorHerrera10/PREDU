@@ -45,6 +45,7 @@ const RegisterPage = () => {
                 nombre: fullName,
                 email: user.email,
                 creadoEn: new Date(),
+                role: "user"
             });
 
             toast.current.show({

@@ -8,18 +8,13 @@ import { Dropdown } from 'primereact/dropdown';
 import { Skeleton } from 'primereact/skeleton';
 import { ProgressSpinner } from 'primereact/progressspinner';
 import { Ripple } from 'primereact/ripple';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { auth, db } from '../firebase';
 
-// Datos simulados
-const mockUsuarios = [
-    { _id: '1', nombre: 'Ana Salazar', correo: 'ana@predu.pe', rol: 'admin' },
-    { _id: '2', nombre: 'Carlos Ñahui', correo: 'carlos@predu.pe', rol: 'alumno' },
-];
-
-// Opciones de rol
 const roles = [
+    { label: 'Usuario', value: 'user' },
     { label: 'Admin', value: 'admin' },
-    { label: 'Alumno', value: 'alumno' },
-    { label: 'Psicólogo', value: 'psicologo' },
 ];
 
 export default function UsuariosPage() {
@@ -30,49 +25,76 @@ export default function UsuariosPage() {
     const [visible, setVisible] = useState(false);
     const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
 
-    const [form, setForm] = useState({ nombre: '', correo: '', rol: '' });
+    const [form, setForm] = useState({ nombre: '', email: '', role: '', password: '' });
+
+    const fetchUsers = async () => {
+        setLoading(true);
+        const usersCollectionRef = collection(db, 'usuarios');
+        const data = await getDocs(usersCollectionRef);
+        setUsuarios(data.docs.map((doc) => ({ ...doc.data(), id: doc.id })));
+        setLoading(false);
+    };
 
     useEffect(() => {
-        // Simular carga inicial
-        setTimeout(() => {
-            setUsuarios(mockUsuarios);
-            setLoading(false);
-        }, 1000);
+        fetchUsers();
     }, []);
 
     const abrirCrear = () => {
-        setForm({ nombre: '', correo: '', rol: '' });
+        setForm({ nombre: '', email: '', role: 'user', password: '' });
         setUsuarioSeleccionado(null);
         setVisible(true);
     };
 
     const abrirEditar = (usuario) => {
-        setForm({ ...usuario });
+        setForm({ nombre: usuario.nombre, email: usuario.email, role: usuario.role, password: '' });
         setUsuarioSeleccionado(usuario);
         setVisible(true);
     };
 
-    const eliminarUsuario = (usuario) => {
+    const eliminarUsuario = async (usuario) => {
         setGlobalLoading(true);
-        setTimeout(() => {
-            setUsuarios((prev) => prev.filter((u) => u._id !== usuario._id));
+        try {
+            await deleteDoc(doc(db, 'usuarios', usuario.id));
+            setUsuarios((prev) => prev.filter((u) => u.id !== usuario.id));
+        } catch (error) {
+            console.error("Error al eliminar usuario:", error);
+        } finally {
             setGlobalLoading(false);
-        }, 800);
+        }
     };
 
-    const guardarUsuario = () => {
+    const guardarUsuario = async () => {
         setGlobalLoading(true);
-        setTimeout(() => {
+        try {
             if (usuarioSeleccionado) {
+                const userDocRef = doc(db, 'usuarios', usuarioSeleccionado.id);
+                await updateDoc(userDocRef, {
+                    nombre: form.nombre,
+                    email: form.email,
+                    role: form.role,
+                });
                 setUsuarios((prev) =>
-                    prev.map((u) => (u._id === usuarioSeleccionado._id ? { ...form, _id: u._id } : u))
+                    prev.map((u) => (u.id === usuarioSeleccionado.id ? { ...u, nombre: form.nombre, email: form.email, role: form.role } : u))
                 );
             } else {
-                setUsuarios((prev) => [...prev, { ...form, _id: String(Date.now()) }]);
+                const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password);
+                const newUserUid = userCredential.user.uid;
+                const newUserDoc = {
+                    nombre: form.nombre,
+                    email: form.email,
+                    role: form.role,
+                    uid: newUserUid,
+                    creadoEn: new Date(),
+                };
+                const docRef = await addDoc(collection(db, 'usuarios'), newUserDoc);
+                setUsuarios((prev) => [...prev, { ...newUserDoc, id: docRef.id }]);
             }
             setVisible(false);
+        } catch (error) {
+            console.error("Error al guardar usuario:", error);
+        } finally {
             setGlobalLoading(false);
-        }, 800);
+        }
     };
 
     const footerDialog = (
@@ -107,8 +129,8 @@ export default function UsuariosPage() {
                     ) : (
                         <DataTable value={usuarios} paginator rows={5} stripedRows responsiveLayout="scroll">
                             <Column field="nombre" header="Nombre" sortable />
-                            <Column field="correo" header="Correo" sortable />
-                            <Column field="rol" header="Rol" sortable />
+                            <Column field="email" header="Correo" sortable />
+                            <Column field="role" header="Rol" sortable />
                             <Column
                                 header="Acciones"
                                 body={(rowData) => (
@@ -132,34 +154,47 @@ export default function UsuariosPage() {
                 modal
             >
                 <div className="flex flex-col gap-4">
-          <span className="p-float-label">
-            <InputText
-                id="nombre"
-                value={form.nombre}
-                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            />
-            <label htmlFor="nombre">Nombre</label>
-          </span>
+                    <span className="p-float-label">
+                        <InputText
+                            id="nombre"
+                            value={form.nombre}
+                            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                        />
+                        <label htmlFor="nombre">Nombre</label>
+                    </span>
 
                     <span className="p-float-label">
-            <InputText
-                id="correo"
-                value={form.correo}
-                onChange={(e) => setForm({ ...form, correo: e.target.value })}
-            />
-            <label htmlFor="correo">Correo</label>
-          </span>
+                        <InputText
+                            id="email"
+                            value={form.email}
+                            onChange={(e) => setForm({ ...form, email: e.target.value })}
+                            disabled={!!usuarioSeleccionado}
+                        />
+                        <label htmlFor="email">Correo</label>
+                    </span>
+
+                    {!usuarioSeleccionado && (
+                        <span className="p-float-label">
+                            <InputText
+                                id="password"
+                                type="password"
+                                value={form.password}
+                                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            />
+                            <label htmlFor="password">Contraseña</label>
+                        </span>
+                    )}
 
                     <span className="p-float-label">
-            <Dropdown
-                id="rol"
-                value={form.rol}
-                options={roles}
-                onChange={(e) => setForm({ ...form, rol: e.value })}
-                placeholder="Seleccione un rol"
-            />
-            <label htmlFor="rol">Rol</label>
-          </span>
+                        <Dropdown
+                            id="role"
+                            value={form.role}
+                            options={roles}
+                            onChange={(e) => setForm({ ...form, role: e.value })}
+                            placeholder="Seleccione un rol"
+                        />
+                        <label htmlFor="role">Rol</label>
+                    </span>
                 </div>
             </Dialog>
         </div>

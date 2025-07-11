@@ -1,28 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Card } from "primereact/card";
-import { Button } from "primereact/button";
 import { Skeleton } from "primereact/skeleton";
-import { Ripple } from "primereact/ripple";
-import { useNavigate } from "react-router-dom";
-import { useLoader } from "../Home/componentes/LoaderContext";
 import { Splitter, SplitterPanel } from "primereact/splitter";
 import styled from "styled-components";
 import { Message } from "primereact/message";
+import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { auth, db } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const Dashboard = () => {
     const [loadingLocal, setLoadingLocal] = useState(true);
-    const { showLoader, hideLoader } = useLoader();
-    const navigate = useNavigate();
-
-    // Simulación: obtener el estado de evaluación y notas
-    const [evaluacionCompletada, setEvaluacionCompletada] = useState(false);
-    const [notasSubidas, setNotasSubidas] = useState(false);
-    const [combinacion, setCombinacion] = useState(null); // ej: { test: "Biomedicas", notas: "Sociales" }
+    const [academicResult, setAcademicResult] = useState(null);
+    const [psychologicalResult, setPsychologicalResult] = useState(null);
+    const [combinedAdvice, setCombinedAdvice] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
 
     const obtenerConsejo = (test, notas) => {
         const combinacionClave = `${test}|${notas}`;
         const consejos = {
-            "Ingenierías|Ingenierías": {
+            "Ingenierias|Ingenierias": {
                 consejoAcademico: "Considera ingresar a carreras técnicas o universitarias enfocadas en resolver problemas estructurados, trabajar con herramientas, sistemas o máquinas, y usar las matemáticas y la lógica para crear soluciones útiles.",
                 consejoPsicologico: "Opta por una carrera que te permita desarrollar soluciones prácticas en sectores como infraestructura, tecnología o industria.",
                 carreras: [
@@ -139,30 +135,51 @@ const Dashboard = () => {
         return consejos[combinacionClave] || null;
     };
 
-
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setCurrentUser(user);
+            if (user) {
+                await fetchUserResults(user.uid);
+            } else {
+                setLoadingLocal(false);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
 
     useEffect(() => {
-        showLoader();
+        if (academicResult && psychologicalResult) {
+            setCombinedAdvice(obtenerConsejo(academicResult.carrera, psychologicalResult.carrera));
+        }
+    }, [academicResult, psychologicalResult]);
 
-        // Simulación de carga de datos del backend o localStorage
-        setTimeout(() => {
-            // Simular datos del usuario
-            const evaluacion = true;
-            const notas = true;
-            const testResult = "Biomedicas"; // Simulado
-            const notasResult = "Sociales"; // Simulado
-
-            setEvaluacionCompletada(evaluacion);
-            setNotasSubidas(notas);
-
-            if (evaluacion && notas) {
-                setCombinacion(obtenerConsejo(testResult, notasResult));
+    const fetchUserResults = async (uid) => {
+        try {
+            const academicQuery = query(
+                collection(db, "academico"),
+                orderBy("creadoEl", "desc"),
+                limit(1)
+            );
+            const academicSnapshot = await getDocs(academicQuery);
+            if (!academicSnapshot.empty) {
+                setAcademicResult(academicSnapshot.docs[0].data());
             }
 
+            const psychologicalQuery = query(
+                collection(db, "psicologica"),
+                orderBy("creadoEl", "desc"),
+                limit(1)
+            );
+            const psychologicalSnapshot = await getDocs(psychologicalQuery);
+            if (!psychologicalSnapshot.empty) {
+                setPsychologicalResult(psychologicalSnapshot.docs[0].data());
+            }
+        } catch (error) {
+            console.error("Error fetching user results:", error);
+        } finally {
             setLoadingLocal(false);
-            hideLoader();
-        }, 1500);
-    }, [showLoader, hideLoader]);
+        }
+    };
 
     return (
         <Container>
@@ -173,14 +190,15 @@ const Dashboard = () => {
                 <SplitterPanel size={20} minSize={10} style={{ padding: "10px", borderRight: "1px solid #ddd" }}>
                     <h3>Información del Modelo ML 1</h3>
                     {loadingLocal ? (
-                        <Skeleton width="80%" height="100%" />
-                    ) : (
+                        <Skeleton width="80%" height="1.5rem" className="mb-2" />
+                    ) : academicResult ? (
                         <div>
-                            <p>Aquí se mostrará información o gráficos relacionados con el primer modelo de ML.</p>
-                            <Button label="Ver detalles" icon="pi pi-search" className="p-button-sm" onClick={() => navigate("/ml1")} />
+                            <p>Carrera Académica Sugerida:</p>
+                            <p><strong>{academicResult.carrera}</strong></p>
                         </div>
+                    ) : (
+                        <Message severity="info" text="No se encontraron resultados académicos." />
                     )}
-                    <Ripple />
                 </SplitterPanel>
 
                 <SplitterPanel size={60} minSize={30} style={{ padding: "10px" }}>
@@ -194,13 +212,26 @@ const Dashboard = () => {
                                 </Card>
                             ))}
                         </Grid>
-                    ) : (!evaluacionCompletada || !notasSubidas) ? (
-                        <Message severity="warn" text="Para recibir recomendaciones, primero completa el Test Vocacional y sube tus Notas Académicas." />
+                    ) : (!academicResult || !psychologicalResult) ? (
+                        <Message severity="warn" text="Para recibir recomendaciones, asegúrate de tener resultados tanto académicos como psicológicos." />
                     ) : (
                         <Grid>
                             <StyledCard title="Resultado de Orientación Vocacional">
-                                <p><strong>Consejo Vocacional:</strong> {combinacion?.consejo}</p>
-                                <p><strong>Carreras sugeridas:</strong> {combinacion?.carreras}</p>
+                                {combinedAdvice ? (
+                                    <>
+                                        <p><strong>Consejo Académico:</strong> {combinedAdvice.consejoAcademico}</p>
+                                        <p><strong>Consejo Psicológico:</strong> {combinedAdvice.consejoPsicologico}</p>
+                                        <p><strong>Consejo de Compatibilidad:</strong> {combinedAdvice.consejoCompatibilidad}</p>
+                                        <p><strong>Carreras sugeridas:</strong></p>
+                                        <ul>
+                                            {combinedAdvice.carreras.map((carrera, index) => (
+                                                <li key={index}>{index + 1}. {carrera}</li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                ) : (
+                                    <Message severity="info" text="No hay un consejo disponible para la combinación de resultados actual." />
+                                )}
                             </StyledCard>
                         </Grid>
                     )}
@@ -209,14 +240,15 @@ const Dashboard = () => {
                 <SplitterPanel size={20} minSize={10} style={{ padding: "10px", borderLeft: "1px solid #ddd" }}>
                     <h3>Información del Modelo ML 2</h3>
                     {loadingLocal ? (
-                        <Skeleton width="80%" height="100%" />
-                    ) : (
+                        <Skeleton width="80%" height="1.5rem" className="mb-2" />
+                    ) : psychologicalResult ? (
                         <div>
-                            <p>Aquí se mostrará información o gráficos relacionados con el segundo modelo de ML.</p>
-                            <Button label="Ver detalles" icon="pi pi-search" className="p-button-sm" onClick={() => navigate("/ml2")} />
+                            <p>Carrera Psicológica Sugerida:</p>
+                            <p><strong>{psychologicalResult.carrera}</strong></p>
                         </div>
+                    ) : (
+                        <Message severity="info" text="No se encontraron resultados psicológicos." />
                     )}
-                    <Ripple />
                 </SplitterPanel>
             </Splitter>
         </Container>
