@@ -19,6 +19,7 @@ import NotasPage from "../admin/NotasPage";
 import PsicologicoComponente from "../admin/componente/psicologico-componente";
 import AcademicoComponente from "../admin/componente/academico-componente";
 import PredecirCarreraPage from "../admin/Predecir-Carrera-Page";
+import ConfiguracionPerfilAdmin from "../admin/componente/configuracion-perfil-componente"
 
 const AppRoutes = () => {
     return (
@@ -44,7 +45,8 @@ const AppRoutes = () => {
                 <Route path="notas" element={<NotasPage />} />
                 <Route path="val-psicologico" element={<PsicologicoComponente />} />
                 <Route path="val-academico" element={<AcademicoComponente />} />
-                <Route path="predecir" element={<PredecirCarreraPage />} /> {/* opcional, si deseas que el botón 'Predecir Carrera' abra una ruta */}
+                <Route path="predecir" element={<PredecirCarreraPage />} />
+                <Route path="configuracion-perfil" element={<ConfiguracionPerfilAdmin />} />
             </Route>
 
             {/* Ruta 404 */}

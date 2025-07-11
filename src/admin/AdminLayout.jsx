@@ -150,6 +150,12 @@ export default function AdminLayout() {
                     icon: 'pi pi-check',
                     template: itemRenderer,
                     command: () => navigate('/admin/val-academico')
+                },
+                {
+                    label: 'Predecir Carrera',
+                    icon: 'pi pi-chart-line',
+                    template: itemRenderer,
+                    command: () => navigate('/admin/predecir')
                 }
             ]
         },
@@ -157,10 +163,10 @@ export default function AdminLayout() {
             label: 'Opciones',
             items: [
                 {
-                    label: 'Predecir Carrera',
-                    icon: 'pi pi-chart-line',
+                    label: 'Configuración de perfil',
+                    icon: 'pi pi-cog',
                     template: itemRenderer,
-                    command: () => navigate('/admin/predecir')
+                    command: () => navigate('/admin/configuracion-perfil')
                 },
                 {
                     label: 'Cerrar sesión',
