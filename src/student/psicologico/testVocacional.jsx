@@ -14,7 +14,7 @@ const bloques = [
         nombre: "Actividades",
         color: "#42A5F5",
         preguntas: [
-            { id: "R01", texto: "Reparar artículos eléctricos", tipo: "R", gif: "https://via.placeholder.com/150/0000FF/808080?Text=R01" },
+            { id: "R01", texto: "Reparar artículos eléctricos", tipo: "R", gif: "/pregunta-1.gif"},
             { id: "I01", texto: "Leer libros o revistas científicas", tipo: "I", gif: "https://via.placeholder.com/150/FF0000/FFFFFF?Text=I01" },
             { id: "A01", texto: "Bosquejar, dibujar o pintar", tipo: "A", gif: "https://via.placeholder.com/150/00FF00/FFFFFF?Text=A01" },
             { id: "S01", texto: "Escribir cartas a los amigos", tipo: "S", gif: "https://via.placeholder.com/150/FFFF00/000000?Text=S01" },
@@ -379,7 +379,13 @@ const TestCompletoRIASEC = () => {
                         {currentQuestion ? currentQuestion.texto : "Cargando pregunta..."}
                     </p>
                     <div style={{ textAlign: 'center' }}>
-                        {currentQuestion ? <img src={currentQuestion.gif} alt="gif de la pregunta" /> : null}
+                        {currentQuestion ? (
+                            <img
+                                src={currentQuestion.gif}
+                                alt="gif de la pregunta"
+                                style={{ maxWidth: '150px', maxHeight: '150px', width: '100%', height: 'auto' }}
+                            />
+                        ) : null}
                     </div>
                     {errorMessage && (
                         <p style={{ color: 'red', textAlign: 'center' }}>{errorMessage}</p>
